@@ -96,17 +96,9 @@ func updateDNS(project, zone, hostname, ip string) error {
 		return err
 	}
 
-	listcall := dnsService.ResourceRecordSets.List(project, zone)
-	listresp, err := listcall.Do()
+	foundRec, err := getExistingRecord(dnsService, project, zone, hostname)
 	if err != nil {
 		return err
-	}
-	var foundRec *dns.ResourceRecordSet
-	for i := range listresp.Rrsets {
-		if listresp.Rrsets[i].Name == hostname {
-			foundRec = listresp.Rrsets[i]
-			break
-		}
 	}
 
 	if foundRec != nil {
@@ -131,4 +123,30 @@ func updateDNS(project, zone, hostname, ip string) error {
 		return err
 	}
 	return nil
+}
+
+// getExistingRecord will use the DNS service, dnsSvc, to search for a record
+// with the name hostname. If not found, the return value and err will both be nil.
+func getExistingRecord(dnsSvc *dns.Service, project, zone, hostname string) (*dns.ResourceRecordSet, error) {
+	var errFound = errors.New("found record")
+	listcall := dnsSvc.ResourceRecordSets.List(project, zone)
+	var foundRec *dns.ResourceRecordSet
+	err := listcall.Pages(context.Background(),
+		func(r *dns.ResourceRecordSetsListResponse) error {
+			for i := range r.Rrsets {
+				if r.Rrsets[i].Name == hostname {
+					foundRec = r.Rrsets[i]
+					return errFound
+				}
+			}
+			return nil
+		})
+	if err == errFound {
+		// Not really an error, just the way to break out of processing
+		// more pages.
+		return foundRec, nil
+	} else if err != nil {
+		return nil, err
+	}
+	return nil, nil
 }
