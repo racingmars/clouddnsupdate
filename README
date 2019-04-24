@@ -1,0 +1,3 @@
+This is a Google Cloud Function designed to emulate the DynDNS update
+protocol, https://help.dyn.com/remote-access-api/perform-update/,
+to update hostnames in a zone in Google Cloud DNS.
